@@ -27,8 +27,8 @@ htmlcov/
 !.env.example
 
 ## Generated application data
-output/
-tmp/
+/output/
+/tmp/
 
 ## Local editor and OS files
 .vscode/
