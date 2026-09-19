@@ -8,9 +8,8 @@ Conforms to Section 23.4 & 23.5 of the design document:
 - Graceful fallback and error boundary per page
 """
 from dataclasses import dataclass
-from io import BytesIO
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 import fitz  # PyMuPDF
 from PIL import Image
 
@@ -53,7 +52,15 @@ class PaddleOCRAdapter:
             try:
                 from paddleocr import PaddleOCR  # type: ignore
                 logger.info(f"Initializing PaddleOCR engine with lang='{self.lang}'...")
-                self._engine = PaddleOCR(use_angle_cls=True, lang=self.lang, show_log=False)
+                # PaddleOCR 3.x uses ``predict`` and the explicit orientation
+                # option below.  It also continues to accept the legacy ``ocr``
+                # method, but using the current API avoids deprecated options.
+                self._engine = PaddleOCR(
+                    lang=self.lang,
+                    use_doc_orientation_classify=False,
+                    use_doc_unwarping=False,
+                    use_textline_orientation=True,
+                )
             except Exception as e:
                 logger.error(f"Failed to initialize PaddleOCR engine: {e}")
                 self._is_available = False
@@ -114,29 +121,49 @@ class PaddleOCRAdapter:
 
         if engine is not None:
             try:
-                ocr_output = engine.ocr(str(image_path), cls=True)
-                if ocr_output and ocr_output[0]:
-                    for entry in ocr_output[0]:
-                        # entry format: [points, (text, confidence)]
-                        points = entry[0]
-                        text, conf = entry[1]
-                        x_coords = [p[0] for p in points]
-                        y_coords = [p[1] for p in points]
-                        bbox = [min(x_coords), min(y_coords), max(x_coords), max(y_coords)]
-                        results.append(OCRLineResult(text=str(text).strip(), bbox=bbox, confidence=float(conf)))
+                # PaddleOCR 3.x returns one result object per input image.  Its
+                # JSON payload contains parallel rec_texts, rec_scores and
+                # rec_polys collections.
+                for output in engine.predict(str(image_path)):
+                    payload = self._result_payload(output)
+                    texts = payload.get("rec_texts", [])
+                    scores = payload.get("rec_scores", [])
+                    polygons = payload.get("rec_polys", [])
+                    for text, score, points in zip(texts, scores, polygons):
+                        normalized_text = str(text).strip()
+                        if not normalized_text:
+                            continue
+                        point_list = points.tolist() if hasattr(points, "tolist") else points
+                        x_coords = [point[0] for point in point_list]
+                        y_coords = [point[1] for point in point_list]
+                        results.append(
+                            OCRLineResult(
+                                text=normalized_text,
+                                bbox=[min(x_coords), min(y_coords), max(x_coords), max(y_coords)],
+                                confidence=float(score),
+                            )
+                        )
             except Exception as e:
                 logger.error(f"Error during PaddleOCR recognition on {image_path}: {e}")
         else:
-            logger.info(f"PaddleOCR not available for {image_path}. Returning fallback notice.")
-            results.append(
-                OCRLineResult(
-                    text="[OCR fallback: PaddleOCR not installed or unavailable in current environment]",
-                    bbox=[0.0, 0.0, 100.0, 20.0],
-                    confidence=0.0,
-                )
-            )
+            # Do not emit a fake text block.  The PDF parser can then retain the
+            # page's native text and metadata will not claim that OCR succeeded.
+            logger.warning(f"PaddleOCR unavailable for {image_path}; skipping OCR for this page.")
 
         return self.sort_reading_order(results)
+
+    @staticmethod
+    def _result_payload(output: Any) -> Dict[str, Any]:
+        """Normalize PaddleOCR 3.x result objects to their OCR payload."""
+        payload = output
+        if not isinstance(payload, dict):
+            payload = getattr(output, "json", output)
+            if callable(payload):
+                payload = payload()
+        if not isinstance(payload, dict):
+            return {}
+        result = payload.get("res", payload)
+        return result if isinstance(result, dict) else {}
 
     def process_page_to_blocks(
         self,

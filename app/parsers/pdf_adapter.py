@@ -89,20 +89,24 @@ class PyMuPDFParserAdapter(BaseParser):
                 force_ocr=force_ocr,
             )
 
-            if decision.needs_ocr:
+            if decision.needs_ocr and self.ocr_adapter.is_available():
                 logger.info(f"Page {page_num} routed to OCR (reason: {decision.reason})")
                 ocr_blocks = self.ocr_adapter.process_page_to_blocks(
                     pdf_page=page,
                     document_id=doc_id,
                     section_path=list(current_section_path),
                 )
-                for blk in ocr_blocks:
-                    unified_doc.blocks.append(blk)
-                    if blk.type == BlockType.HEADING:
-                        level = blk.level or 1
-                        current_section_path = current_section_path[: max(0, level - 1)] + [blk.text.strip()]
-                pages_ocr.append(page_num)
-                continue
+                if ocr_blocks:
+                    for blk in ocr_blocks:
+                        unified_doc.blocks.append(blk)
+                        if blk.type == BlockType.HEADING:
+                            level = blk.level or 1
+                            current_section_path = current_section_path[: max(0, level - 1)] + [blk.text.strip()]
+                    pages_ocr.append(page_num)
+                    continue
+                logger.warning(f"OCR produced no text for page {page_num}; using native PDF extraction.")
+            elif decision.needs_ocr:
+                logger.warning(f"OCR requested for page {page_num}, but PaddleOCR is unavailable; using native PDF extraction.")
 
             # Process native text page
             # 1. Try finding tables first to prevent table text duplication

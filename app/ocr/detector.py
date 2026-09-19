@@ -17,7 +17,7 @@ from app.core.logging import logger
 @dataclass
 class OCRDecision:
     needs_ocr: bool
-    reason: str  # "force_ocr" | "scan" | "low_text" | "low_density" | "native_text"
+    reason: str  # "force_ocr" | "scan" | "low_density" | "native_text"
 
 
 class OCRDetector:
@@ -58,19 +58,20 @@ class OCRDetector:
         area = max(1.0, page_width * page_height)
         density = text_length / area
 
-        # 1. Very low text count
-        if text_length < self.min_text_chars:
-            if image_count > 0:
-                logger.info(
-                    f"Page needs OCR: low text length ({text_length} < {self.min_text_chars}) with {image_count} images"
-                )
-                return OCRDecision(needs_ocr=True, reason="scan")
-            logger.info(
-                f"Page needs OCR: low text length ({text_length} < {self.min_text_chars})"
-            )
-            return OCRDecision(needs_ocr=True, reason="low_text")
+        # Only route pages that contain embedded images to OCR automatically.
+        # This preserves the native parser for text PDFs (including sparse pages,
+        # such as cover pages or pages containing only a short heading).
+        if image_count == 0:
+            return OCRDecision(needs_ocr=False, reason="native_text")
 
-        # 2. Very low text density
+        # 1. Very low text count on an image-containing page: likely a scan.
+        if text_length < self.min_text_chars:
+            logger.info(
+                f"Page needs OCR: low text length ({text_length} < {self.min_text_chars}) with {image_count} images"
+            )
+            return OCRDecision(needs_ocr=True, reason="scan")
+
+        # 2. Very low text density on an image-containing page.
         if density < self.min_text_density:
             logger.info(
                 f"Page needs OCR: low text density ({density:.6f} < {self.min_text_density})"

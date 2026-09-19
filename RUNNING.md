@@ -5,15 +5,22 @@
 - Python 3.11 or newer
 - Windows PowerShell, Command Prompt, or a Unix-like shell
 
-## Set up the environment
+## Set up the environment on Windows
 
-From the project root:
+Open PowerShell in the project root and create the virtual environment:
 
 ```powershell
-python -m venv .venv
+py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e .
+```
+
+If PowerShell blocks activation, allow scripts for the current user and activate again:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+\.venv\Scripts\Activate.ps1
 ```
 
 For Command Prompt, activate the environment with:
@@ -31,12 +38,18 @@ python -m pip install --upgrade pip
 python -m pip install -e .
 ```
 
-## Start the server
-
-With the virtual environment activated:
+Confirm that the required server package is installed:
 
 ```powershell
-python run.py
+python -c "import uvicorn; print(uvicorn.__version__)"
+```
+
+## Start the server
+
+With the virtual environment activated, from the project root:
+
+```powershell
+python .\run.py
 ```
 
 The server runs with the host and port configured by the application settings. The default local URLs are:
