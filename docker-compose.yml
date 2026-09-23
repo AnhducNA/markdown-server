@@ -1,0 +1,20 @@
+services:
+  paddleocr-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: paddleocr-test
+
+    volumes:
+      - ./input:/app/input:ro
+      - ./output:/app/output
+
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: "True"
+
+    command: >
+      python /app/main.py
+      --input /app/input/sample.pdf
+      --output /app/output
