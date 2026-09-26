@@ -12,9 +12,8 @@ services:
 
     environment:
       PYTHONUNBUFFERED: "1"
-      PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: "True"
 
     command: >
-      python /app/main.py
+      python /app/app/main.py
       --input /app/input/sample.pdf
       --output /app/output

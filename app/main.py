@@ -56,30 +56,17 @@ def ocr_image(ocr, image_path: Path):
 
     print(f"[OCR] Processing: {image_path}")
 
-    result = ocr.predict(str(image_path))
+    result = ocr.ocr(str(image_path), cls=True)
 
     page_lines = []
 
-    for res in result:
-
-        data = res.json
-
-        if isinstance(data, str):
-            import json
-            data = json.loads(data)
-
-        # PaddleOCR output structure can vary by version.
-        # Try to retrieve recognized text.
-        if isinstance(data, dict):
-
-            texts = data.get("rec_texts", [])
-
-            for text in texts:
-
-                text = clean_text(text)
-
-                if text:
-                    page_lines.append(text)
+    # result[0] is the first (and only) image; each element is [box, (text, confidence)]
+    if result and result[0]:
+        for line in result[0]:
+            text = line[1][0]
+            text = clean_text(text)
+            if text:
+                page_lines.append(text)
 
     return page_lines
 
@@ -163,7 +150,9 @@ def main():
     print("[INFO] Initializing PaddleOCR...")
 
     ocr = PaddleOCR(
+        use_angle_cls=True,
         lang="vi",
+        use_gpu=False,
     )
 
     # --------------------------------------------------

@@ -1,5 +1,6 @@
-paddleocr
-paddlepaddle
+paddleocr==2.9.1
+charset-normalizer==3.3.2
 opencv-python-headless
 Pillow
 pdf2image
+

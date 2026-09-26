@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM paddlepaddle/paddle:2.6.2
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -17,11 +17,11 @@ RUN apt-get update && apt-get install -y \
 
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# paddlepaddle is already installed in the base image; only install extras
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 
 RUN mkdir -p /app/input /app/output
 
-CMD ["python", "/app/main.py"]
+CMD ["python", "/app/app/main.py"]
