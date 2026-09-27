@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 from typing import List, Optional
+from urllib.parse import quote
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
@@ -115,7 +116,7 @@ def generate_markdown(pdf_name: str, pages: List[List[str]]) -> str:
     return "\n".join(md)
 
 
-def process_pdf_file(pdf_path: Path) -> str:
+def process_pdf_file(pdf_path: Path, display_name: Optional[str] = None) -> str:
     """
     Process a PDF file and return generated Markdown content.
     """
@@ -132,7 +133,7 @@ def process_pdf_file(pdf_path: Path) -> str:
             lines = ocr_image(ocr, image)
             pages.append(lines)
 
-        return generate_markdown(pdf_path.name, pages)
+        return generate_markdown(display_name or pdf_path.name, pages)
 
 
 @app.get("/")
@@ -168,12 +169,12 @@ async def convert_pdf(
         )
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        temp_pdf_path = Path(temp_dir) / file.filename
+        temp_pdf_path = Path(temp_dir) / "input.pdf"
         with open(temp_pdf_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
         try:
-            markdown_content = process_pdf_file(temp_pdf_path)
+            markdown_content = process_pdf_file(temp_pdf_path, display_name=file.filename)
         except Exception as e:
             print(f"[ERROR] Processing failed: {e}")
             raise HTTPException(
@@ -182,11 +183,18 @@ async def convert_pdf(
 
     if download:
         stem = Path(file.filename).stem
+        filename_out = f"{stem}.md"
+        encoded_filename = quote(filename_out)
+        ascii_stem = re.sub(r'[^\x00-\x7F]+', '_', stem)
+        content_disposition = (
+            f'attachment; filename="{ascii_stem}.md"; '
+            f"filename*=UTF-8''{encoded_filename}"
+        )
         return Response(
             content=markdown_content,
             media_type="text/markdown; charset=utf-8",
             headers={
-                "Content-Disposition": f'attachment; filename="{stem}.md"'
+                "Content-Disposition": content_disposition
             },
         )
 
