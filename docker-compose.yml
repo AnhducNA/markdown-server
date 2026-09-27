@@ -1,19 +1,17 @@
 services:
-  paddleocr-test:
+  paddleocr-api:
     build:
       context: .
       dockerfile: Dockerfile
 
-    container_name: paddleocr-test
+    container_name: paddleocr-api
+
+    ports:
+      - "8000:8000"
 
     volumes:
-      - ./input:/app/input:ro
+      - ./input:/app/input
       - ./output:/app/output
 
     environment:
       PYTHONUNBUFFERED: "1"
-
-    command: >
-      python /app/app/main.py
-      --input /app/input/sample.pdf
-      --output /app/output
