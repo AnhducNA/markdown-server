@@ -7,7 +7,7 @@ services:
     container_name: paddleocr-api
 
     ports:
-      - "8000:8000"
+      - "6868:6868"
 
     volumes:
       - ./input:/app/input

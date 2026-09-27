@@ -10,8 +10,8 @@ Hệ thống đã được nâng cấp từ chương trình batch chạy 1 lần
 
 | Thành phần | Vai trò |
 | --- | --- |
-| `docker-compose.yml` | Build và chạy container `paddleocr-api`; mở cổng `8000:8000`; mount các thư mục input/output. |
-| `Dockerfile` | Tạo môi trường Python, cài dependencies hệ thống (`poppler-utils`, `libgl1`), thư viện ứng dụng, `EXPOSE 8000` và chạy Uvicorn. |
+| `docker-compose.yml` | Build và chạy container `paddleocr-api`; mở cổng `6868:6868`; mount các thư mục input/output. |
+| `Dockerfile` | Tạo môi trường Python, cài dependencies hệ thống (`poppler-utils`, `libgl1`), thư viện ứng dụng, `EXPOSE 6868` và chạy Uvicorn. |
 | `requirements.txt` | Khai báo PaddleOCR, FastAPI, Uvicorn, python-multipart và các thư viện hỗ trợ. |
 | `app/main.py` | Ứng dụng FastAPI định nghĩa API endpoints (`/convert`, `/health`), quản lý model OCR và pipeline xử lý PDF → ảnh → OCR → Markdown. Đồng thời hỗ trợ chế độ CLI fallback. |
 | `input/` | Chứa file mẫu hoặc dữ liệu đệm trên host (được mount vào container). |
@@ -21,7 +21,7 @@ Hệ thống đã được nâng cấp từ chương trình batch chạy 1 lần
 
 ```mermaid
 flowchart TD
-    Client["Client / User"] -->|POST /convert file PDF| API["FastAPI Server (Port 8000)"]
+    Client["Client / User"] -->|POST /convert file PDF| API["FastAPI Server (Port 6868)"]
     API --> Health["GET /health"]
     API --> Lifespan["Startup Lifespan: Load PaddleOCR (1 lần duy nhất)"]
     API --> TempDir["Tạo thư mục tạm thời (tempfile)"]
@@ -36,7 +36,7 @@ flowchart TD
 
 ### 4.1. Khởi động Server (Startup)
 1. Chạy lệnh `docker compose up --build`.
-2. Container `paddleocr-api` khởi chạy Uvicorn server lắng nghe tại port `8000`.
+2. Container `paddleocr-api` khởi chạy Uvicorn server lắng nghe tại port `6868`.
 3. Thông qua cơ chế **lifespan** của FastAPI, ứng dụng khởi tạo duy nhất 1 instance `PaddleOCR` (ngôn ngữ `vi`, góc quay `use_angle_cls=True`, `use_gpu=False`). Model được load sẵn vào bộ nhớ RAM, tránh việc phải load lại model cho từng request.
 
 ### 4.2. Xử lý Request Upload File (`POST /convert`)

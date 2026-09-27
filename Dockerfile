@@ -24,6 +24,6 @@ COPY app ./app
 
 RUN mkdir -p /app/input /app/output
 
-EXPOSE 8000
+EXPOSE 6868
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "6868"]

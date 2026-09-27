@@ -204,7 +204,7 @@ def main():
         "--host", default="0.0.0.0", help="Host address for API server"
     )
     parser.add_argument(
-        "--port", type=int, default=8000, help="Port for API server"
+        "--port", type=int, default=6868, help="Port for API server"
     )
 
     args = parser.parse_args()

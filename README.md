@@ -8,7 +8,7 @@ This project converts PDF documents into page images, performs OCR using PaddleO
 
 - `app/main.py` — FastAPI application & OCR conversion pipeline
 - `Dockerfile` — Docker environment containerizing Python, Poppler, OpenCV, and PaddleOCR
-- `docker-compose.yml` — Docker Compose configuration exposing port `8000`
+- `docker-compose.yml` — Docker Compose configuration exposing port `6868`
 - `requirements.txt` — Python package dependencies
 - `input/` / `output/` — Mount directories for file persistence if needed
 
@@ -24,10 +24,15 @@ Start the API server:
 docker compose up --build
 ```
 
-The server will start on `http://localhost:8000`.
+### Update new source: 
+```bash
+docker compose up -d --build
+```
 
-- **Swagger UI Interactive Documentation**: Open `http://localhost:8000/docs` in your browser.
-- **ReDoc Documentation**: Open `http://localhost:8000/redoc`.
+The server will start on `http://localhost:6868`.
+
+- **Swagger UI Interactive Documentation**: Open `http://localhost:6868/docs` in your browser.
+- **ReDoc Documentation**: Open `http://localhost:6868/redoc`.
 
 ---
 
@@ -52,7 +57,7 @@ The server will start on `http://localhost:8000`.
 
 **Return JSON:**
 ```bash
-curl -X POST "http://localhost:8000/convert" \
+curl -X POST "http://localhost:6868/convert" \
   -F "file=@/path/to/your/document.pdf"
 ```
 
@@ -66,7 +71,7 @@ curl -X POST "http://localhost:8000/convert" \
 
 **Download Markdown File directly:**
 ```bash
-curl -X POST "http://localhost:8000/convert?download=true" \
+curl -X POST "http://localhost:6868/convert?download=true" \
   -F "file=@/path/to/your/document.pdf" \
   -o "output.md"
 ```
@@ -76,7 +81,7 @@ curl -X POST "http://localhost:8000/convert?download=true" \
 ```python
 import requests
 
-url = "http://localhost:8000/convert"
+url = "http://localhost:6868/convert"
 files = {"file": open("document.pdf", "rb")}
 
 response = requests.post(url, files=files)
