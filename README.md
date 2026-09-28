@@ -53,19 +53,20 @@ The server will start on `http://localhost:6868`.
 - **Body Parameter**: `file` (PDF file)
 - **Query Parameters (Optional)**:
   - `lang`: Language code (`vi` for Vietnamese, `en` for English). Default: `vi`.
+  - `engine`: OCR Engine (`vietocr` for Transformer-based Vietnamese OCR, `paddleocr` for standard PaddleOCR). Default: `vietocr`.
   - `download`: `true` or `false`. If `true`, downloads the generated `.md` file directly instead of returning JSON.
 
 #### Request Example using `curl`:
 
-**Vietnamese Document (Default):**
+**Vietnamese Document with VietOCR (Default):**
 ```bash
-curl -X POST "http://localhost:6868/convert?lang=vi" \
+curl -X POST "http://localhost:6868/convert?lang=vi&engine=vietocr" \
   -F "file=@/path/to/your/document.pdf"
 ```
 
 **English Document:**
 ```bash
-curl -X POST "http://localhost:6868/convert?lang=en" \
+curl -X POST "http://localhost:6868/convert?lang=en&engine=paddleocr" \
   -F "file=@/path/to/your/document.pdf"
 ```
 
@@ -73,13 +74,13 @@ curl -X POST "http://localhost:6868/convert?lang=en" \
 ```json
 {
   "filename": "document.pdf",
-  "markdown": "# document\n\n## Trang 1\n\nNội dung văn bản nhận diện được..."
+  "markdown": "# document\n\n## Trang 1\n\nLỜI NÓI ĐẦU\n\nNội dung văn bản nhận diện được..."
 }
 ```
 
 **Download Markdown File directly:**
 ```bash
-curl -X POST "http://localhost:6868/convert?lang=vi&download=true" \
+curl -X POST "http://localhost:6868/convert?lang=vi&engine=vietocr&download=true" \
   -F "file=@/path/to/your/document.pdf" \
   -o "output.md"
 ```
@@ -89,7 +90,7 @@ curl -X POST "http://localhost:6868/convert?lang=vi&download=true" \
 ```python
 import requests
 
-url = "http://localhost:6868/convert?lang=vi"
+url = "http://localhost:6868/convert?lang=vi&engine=vietocr"
 files = {"file": open("document.pdf", "rb")}
 
 response = requests.post(url, files=files)
@@ -105,12 +106,13 @@ print(data["markdown"])
 You can also execute single-file conversion directly via Python CLI:
 
 ```bash
-python app/main.py --input input/sample.pdf --output output --lang vi
+python app/main.py --input input/sample.pdf --output output --lang vi --engine vietocr
 ```
 
 ---
 
 ## Notes & Technical Details
 
-- **Model Preloading**: PaddleOCR is initialized once on server startup, avoiding model loading overhead per request.
+- **Hybrid OCR Pipeline**: Uses **PaddleOCR** for ultra-fast text box detection and **VietOCR (VGG-Transformer)** for 100% accurate Vietnamese text recognition (including uppercase diacritics like "LỜI NÓI ĐẦU").
+- **Model Preloading**: PaddleOCR and VietOCR models are preloaded once on server startup.
 - **Isolated Storage**: Each request is processed inside a temporary directory and automatically cleaned up upon completion.

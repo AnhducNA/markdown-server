@@ -22,7 +22,8 @@ RUN apt-get update && apt-get install -y \
 
 COPY requirements.txt .
 
-# paddlepaddle is already installed in the base image; only install extras
+# Install PyTorch CPU and VietOCR dependencies
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app

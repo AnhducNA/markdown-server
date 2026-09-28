@@ -6,3 +6,5 @@ pdf2image
 fastapi
 uvicorn[standard]
 python-multipart
+vietocr
+einops
