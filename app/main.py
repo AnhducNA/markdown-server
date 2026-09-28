@@ -14,26 +14,26 @@ from fastapi.responses import Response
 from paddleocr import PaddleOCR
 import uvicorn
 
-# Global OCR instance
-ocr_engine: Optional[PaddleOCR] = None
+# Global OCR instances cached by language
+ocr_engines: dict = {}
 
 
-def get_ocr_engine() -> PaddleOCR:
-    global ocr_engine
-    if ocr_engine is None:
-        print("[INFO] Initializing PaddleOCR engine...")
-        ocr_engine = PaddleOCR(
+def get_ocr_engine(lang: str = "vi") -> PaddleOCR:
+    global ocr_engines
+    if lang not in ocr_engines:
+        print(f"[INFO] Initializing PaddleOCR engine for lang='{lang}'...")
+        ocr_engines[lang] = PaddleOCR(
             use_angle_cls=True,
-            lang="vi",
+            lang=lang,
             use_gpu=False,
         )
-    return ocr_engine
+    return ocr_engines[lang]
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Load PaddleOCR model once
-    get_ocr_engine()
+    # Startup: Load default PaddleOCR model (vi) once
+    get_ocr_engine("vi")
     yield
     # Shutdown logic if needed
 
@@ -116,11 +116,13 @@ def generate_markdown(pdf_name: str, pages: List[List[str]]) -> str:
     return "\n".join(md)
 
 
-def process_pdf_file(pdf_path: Path, display_name: Optional[str] = None) -> str:
+def process_pdf_file(
+    pdf_path: Path, display_name: Optional[str] = None, lang: str = "vi"
+) -> str:
     """
     Process a PDF file and return generated Markdown content.
     """
-    ocr = get_ocr_engine()
+    ocr = get_ocr_engine(lang)
     with tempfile.TemporaryDirectory() as temp_dir:
         image_dir = Path(temp_dir) / "_pages"
         images = pdf_to_images(str(pdf_path), str(image_dir))
@@ -142,7 +144,7 @@ def read_root():
         "message": "Welcome to PDF to Markdown OCR API Server",
         "endpoints": {
             "health": "/health",
-            "convert": "/convert (POST multipart/form-data with 'file')",
+            "convert": "/convert (POST multipart/form-data with 'file', optional 'lang'='vi'|'en')",
             "docs": "/docs",
         },
     }
@@ -156,6 +158,9 @@ def health_check():
 @app.post("/convert")
 async def convert_pdf(
     file: UploadFile = File(...),
+    lang: str = Query(
+        "vi", description="OCR language: 'vi' (Vietnamese) or 'en' (English)"
+    ),
     download: bool = Query(
         False, description="If true, downloads the result as a .md file"
     ),
@@ -174,7 +179,9 @@ async def convert_pdf(
             shutil.copyfileobj(file.file, buffer)
 
         try:
-            markdown_content = process_pdf_file(temp_pdf_path, display_name=file.filename)
+            markdown_content = process_pdf_file(
+                temp_pdf_path, display_name=file.filename, lang=lang
+            )
         except Exception as e:
             print(f"[ERROR] Processing failed: {e}")
             raise HTTPException(
@@ -209,6 +216,9 @@ def main():
     parser.add_argument("--input", help="Input PDF file for CLI execution")
     parser.add_argument("--output", help="Output directory for CLI execution")
     parser.add_argument(
+        "--lang", default="vi", help="OCR language: 'vi' (Vietnamese) or 'en' (English)"
+    )
+    parser.add_argument(
         "--host", default="0.0.0.0", help="Host address for API server"
     )
     parser.add_argument(
@@ -226,7 +236,7 @@ def main():
             raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
         output_dir.mkdir(parents=True, exist_ok=True)
-        markdown = process_pdf_file(pdf_path)
+        markdown = process_pdf_file(pdf_path, lang=args.lang)
 
         output_file = output_dir / f"{pdf_path.stem}.md"
         output_file.write_text(markdown, encoding="utf-8")

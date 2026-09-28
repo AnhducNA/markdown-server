@@ -51,13 +51,21 @@ The server will start on `http://localhost:6868`.
 - **`POST /convert`**
 - **Content-Type**: `multipart/form-data`
 - **Body Parameter**: `file` (PDF file)
-- **Query Parameter (Optional)**: `download=true` (If set to `true`, downloads the generated `.md` file directly instead of returning JSON)
+- **Query Parameters (Optional)**:
+  - `lang`: Language code (`vi` for Vietnamese, `en` for English). Default: `vi`.
+  - `download`: `true` or `false`. If `true`, downloads the generated `.md` file directly instead of returning JSON.
 
 #### Request Example using `curl`:
 
-**Return JSON:**
+**Vietnamese Document (Default):**
 ```bash
-curl -X POST "http://localhost:6868/convert" \
+curl -X POST "http://localhost:6868/convert?lang=vi" \
+  -F "file=@/path/to/your/document.pdf"
+```
+
+**English Document:**
+```bash
+curl -X POST "http://localhost:6868/convert?lang=en" \
   -F "file=@/path/to/your/document.pdf"
 ```
 
@@ -71,7 +79,7 @@ curl -X POST "http://localhost:6868/convert" \
 
 **Download Markdown File directly:**
 ```bash
-curl -X POST "http://localhost:6868/convert?download=true" \
+curl -X POST "http://localhost:6868/convert?lang=vi&download=true" \
   -F "file=@/path/to/your/document.pdf" \
   -o "output.md"
 ```
@@ -81,7 +89,7 @@ curl -X POST "http://localhost:6868/convert?download=true" \
 ```python
 import requests
 
-url = "http://localhost:6868/convert"
+url = "http://localhost:6868/convert?lang=vi"
 files = {"file": open("document.pdf", "rb")}
 
 response = requests.post(url, files=files)
@@ -97,7 +105,7 @@ print(data["markdown"])
 You can also execute single-file conversion directly via Python CLI:
 
 ```bash
-python app/main.py --input input/sample.pdf --output output
+python app/main.py --input input/sample.pdf --output output --lang vi
 ```
 
 ---
