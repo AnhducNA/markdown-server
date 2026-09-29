@@ -189,10 +189,11 @@ def process_pdf_file(
     pdf_path: Path,
     display_name: Optional[str] = None,
     lang: str = "vi",
-    engine: str = "vietocr",
+    engine: Optional[str] = None,
 ) -> str:
     """
     Process a PDF file and return generated Markdown content.
+    Automatically uses VietOCR for Vietnamese and PaddleOCR for English.
     """
     detector = get_ocr_engine(lang)
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -203,8 +204,11 @@ def process_pdf_file(
             raise RuntimeError("No images generated from PDF")
 
         pages = []
+        # Automatically choose best engine if not explicitly forced
+        use_vietocr = (engine == "vietocr" or (engine is None and lang == "vi")) and VIETOCR_AVAILABLE
+
         for image in images:
-            if engine.lower() == "vietocr" and lang == "vi":
+            if use_vietocr:
                 lines = ocr_image_vietocr(detector, image)
             else:
                 lines = ocr_image_paddle(detector, image)
@@ -219,7 +223,7 @@ def read_root():
         "message": "Welcome to PDF to Markdown OCR API Server",
         "endpoints": {
             "health": "/health",
-            "convert": "/convert (POST multipart/form-data with 'file', optional 'lang'='vi'|'en', 'engine'='vietocr'|'paddleocr')",
+            "convert": "/convert (POST multipart/form-data with 'file', optional 'lang'='vi'|'en')",
             "docs": "/docs",
         },
     }
@@ -234,18 +238,15 @@ def health_check():
 async def convert_pdf(
     file: UploadFile = File(...),
     lang: str = Query(
-        "vi", description="OCR language: 'vi' (Vietnamese) or 'en' (English)"
-    ),
-    engine: str = Query(
-        "vietocr",
-        description="OCR engine: 'vietocr' (best for Vietnamese) or 'paddleocr'",
+        "vi", description="OCR language: 'vi' (Vietnamese - uses VietOCR) or 'en' (English - uses PaddleOCR)"
     ),
     download: bool = Query(
         False, description="If true, downloads the result as a .md file"
     ),
 ):
     """
-    Upload a PDF file and convert it into Markdown format using VietOCR / PaddleOCR.
+    Upload a PDF file and convert it into Markdown format.
+    Automatically uses VietOCR for Vietnamese and PaddleOCR for English.
     """
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
@@ -262,7 +263,6 @@ async def convert_pdf(
                 temp_pdf_path,
                 display_name=file.filename,
                 lang=lang,
-                engine=engine,
             )
         except Exception as e:
             print(f"[ERROR] Processing failed: {e}")
@@ -299,12 +299,6 @@ def main():
         "--lang", default="vi", help="OCR language: 'vi' (Vietnamese) or 'en' (English)"
     )
     parser.add_argument(
-        "--engine",
-        default="vietocr",
-        choices=["vietocr", "paddleocr"],
-        help="OCR engine: 'vietocr' (default for Vietnamese) or 'paddleocr'",
-    )
-    parser.add_argument(
         "--host", default="0.0.0.0", help="Host address for API server"
     )
     parser.add_argument(
@@ -323,7 +317,7 @@ def main():
 
         output_dir.mkdir(parents=True, exist_ok=True)
         markdown = process_pdf_file(
-            pdf_path, lang=args.lang, engine=args.engine
+            pdf_path, lang=args.lang
         )
 
         output_file = output_dir / f"{pdf_path.stem}.md"
